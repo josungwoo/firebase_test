@@ -1,8 +1,10 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
+import 'firebase_options.dart'; //
+import 'package:firebase_auth/firebase_auth.dart'; // firebase_auth 라이브러리 추가 : 로그인을 위해
+import 'package:google_sign_in/google_sign_in.dart'; // google_sign_in 라이브러리 추가 : 구글 로그인을 위해
+//import mainPage.dart
+import 'mainPage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,7 +12,25 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   //astnc란 비동기 함수를 선언할 때 사용하는 키워드
-  runApp(const MyApp()); //
+  runApp(MaterialApp(home: const MyApp())); //
+}
+
+Future<UserCredential> signInWithGoogle() async {
+  final GoogleSignInAccount? googleUser =
+      await GoogleSignIn().signIn(); // 구글 로그인 팝업창 띄우기
+  // 구글 로그인 팝업창에서 받은 정보를 googleAuth에 저장
+  final GoogleSignInAuthentication? googleAuth = await googleUser
+      ?.authentication; // googleUser가 null이 아닐 때 googleUser의 authentication을 googleAuth에 저장
+
+  final credential = GoogleAuthProvider.credential(
+    // googleAuth에 저장된 정보를 credential에 저장
+    accessToken:
+        googleAuth?.accessToken, // googleAuth의 accessToken을 credential에 저장
+    idToken: googleAuth?.idToken, // googleAuth의 idToken을 credential에 저장
+  );
+
+  return await FirebaseAuth.instance
+      .signInWithCredential(credential); // credential을 이용해 firebase에 로그인
 }
 
 class MyApp extends StatefulWidget {
@@ -21,12 +41,24 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _pastelBlue = const Color(0xFFB2EBF2);
+  final _pastelBlue = const Color(0xFFB2EBF2); // 파스텔 블루 색상 변수
+  bool _passwordVisible = false; // 비밀번호 보이기 or 숨기기 변수
 
   @override
   void initState() {
-    //initState는 위젯이 생성될 때 호출되는 함수
     super.initState();
+//am i logined?
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        print('User is currently signed out!');
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => MainPage()),
+          (route) => route.isFirst,
+        );
+      }
+    });
   }
 
   @override
@@ -34,6 +66,14 @@ class _MyAppState extends State<MyApp> {
     //firebase 가 연결되었는지 확인하는 조건문
     // ignore: avoid_print
     Firebase.apps.isEmpty ? print("not connected") : print("connected");
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        print('User is currently signed out!');
+      } else {
+        print('User is signed in!');
+      }
+    });
+
     return MaterialApp(
       home: Scaffold(
         body: SafeArea(
@@ -69,11 +109,22 @@ class _MyAppState extends State<MyApp> {
                 ),
                 Container(
                   margin: const EdgeInsets.only(left: 16, right: 16, top: 16),
-                  child: const TextField(
+                  child: TextField(
+                    obscureText: !_passwordVisible, //
                     decoration: InputDecoration(
-                      border: OutlineInputBorder(
+                      //password hide on off button
+                      suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _passwordVisible = !_passwordVisible;
+                            });
+                          },
+                          icon: Icon(_passwordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off)),
+                      border: const OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(10))),
-                      labelText: 'Email',
+                      labelText: 'password',
                     ),
                   ),
                 ),
@@ -111,7 +162,7 @@ class _MyAppState extends State<MyApp> {
                     ),
                   ],
                 ),
-                SizedBox(height: 30),
+                const SizedBox(height: 30),
                 const Text("or login with Social Network",
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -124,16 +175,26 @@ class _MyAppState extends State<MyApp> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       IconButton(
+                          // google social login button
                           iconSize: 50,
-                          onPressed: () {},
-                          icon: const Icon(Icons.login)),
-                      IconButton(
-                          iconSize: 50,
-                          onPressed: () {},
-                          icon: const Icon(Icons.login)),
+                          onPressed: () {
+                            signInWithGoogle();
+                            setState(() {});
+                          },
+                          icon: Image.asset('assets/logo/google_logo.png')),
+                      TextButton(
+                          onPressed: () {
+                            FirebaseAuth.instance.signOut();
+                          },
+                          child: const Text('Logout_test')),
                     ],
                   ),
-                )
+                ),
+                TextButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    child: const Text("am i logined?"))
               ],
             ),
           ),
