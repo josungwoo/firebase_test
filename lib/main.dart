@@ -12,7 +12,7 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   //astnc란 비동기 함수를 선언할 때 사용하는 키워드
-  runApp(MaterialApp(home: const MyApp())); //
+  runApp(const MaterialApp(home: MyApp())); //
 }
 
 Future<UserCredential> signInWithGoogle() async {
